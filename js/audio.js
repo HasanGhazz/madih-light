@@ -16,15 +16,35 @@ export class SongPlayer {
     if (this.gain) this.gain.gain.value = v;
   }
 
+  // Call inside a tap. On iPhone, web audio is muted by the silent switch unless the page
+  // plays as media, and it stays locked until a sound starts during a tap.
   ensureContext() {
     if (!this.ctx) {
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* older Safari */ }
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.gain = this.ctx.createGain();
       this.gain.gain.value = this.volume;
       this.gain.connect(this.ctx.destination);
+      this.unlockIOS();
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state !== 'running') this.ctx.resume();
     return this.ctx;
+  }
+
+  unlockIOS() {
+    // a one-sample silent buffer unlocks the context
+    const b = this.ctx.createBuffer(1, 1, 22050);
+    const s = this.ctx.createBufferSource();
+    s.buffer = b; s.connect(this.ctx.destination); s.start(0);
+    // older iOS: a playing <audio> element switches the session to media, ignoring the silent switch
+    if (!navigator.audioSession) {
+      const el = document.createElement('audio');
+      el.setAttribute('x-webkit-airplay', 'deny');
+      el.loop = true;
+      el.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+      el.play().catch(() => {});
+      this.mediaEl = el;
+    }
   }
 
   async load(url) {
@@ -59,7 +79,7 @@ export class SongPlayer {
 
   // Suspending the audio clock also freezes time(), so the game pauses with the music.
   pause() { if (this.ctx && this.ctx.state === 'running') return this.ctx.suspend(); }
-  resume() { if (this.ctx && this.ctx.state === 'suspended') return this.ctx.resume(); }
+  resume() { if (this.ctx && this.ctx.state !== 'running') return this.ctx.resume(); } // iOS also uses 'interrupted'
 
   stop() {
     this.playing = false;
