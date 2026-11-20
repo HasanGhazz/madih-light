@@ -16,6 +16,7 @@ const scene = new Scene($('#stage'));
 const hud = new Hud(document);
 const player = new SongPlayer();
 state.player = player;
+player.onLost = () => pause(); // earphones unplugged etc.: pause so Resume (a tap) restarts the sound
 state.scene = scene;
 window.__ml = state; // handy for testing in the browser console
 

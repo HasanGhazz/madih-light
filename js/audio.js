@@ -26,6 +26,11 @@ export class SongPlayer {
       this.gain.gain.value = this.volume;
       this.gain.connect(this.ctx.destination);
       this.unlockIOS();
+      // iOS stops the audio when earphones are unplugged or a call comes in; tell the game
+      this.ctx.addEventListener('statechange', () => {
+        if (this.ctx.state !== 'running' && !this.selfPaused) this.onLost?.();
+      });
+      navigator.mediaDevices?.addEventListener?.('devicechange', () => this.onLost?.());
     }
     if (this.ctx.state !== 'running') this.ctx.resume();
     return this.ctx;
@@ -78,8 +83,12 @@ export class SongPlayer {
   }
 
   // Suspending the audio clock also freezes time(), so the game pauses with the music.
-  pause() { if (this.ctx && this.ctx.state === 'running') return this.ctx.suspend(); }
-  resume() { if (this.ctx && this.ctx.state !== 'running') return this.ctx.resume(); } // iOS also uses 'interrupted'
+  pause() { if (this.ctx && this.ctx.state === 'running') { this.selfPaused = true; return this.ctx.suspend(); } }
+  resume() { // iOS also uses 'interrupted'
+    this.selfPaused = false;
+    if (this.mediaEl) this.mediaEl.play().catch(() => {});
+    if (this.ctx && this.ctx.state !== 'running') return this.ctx.resume();
+  }
 
   stop() {
     this.playing = false;
