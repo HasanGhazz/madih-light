@@ -12,6 +12,10 @@ const fresh = () => ({
 
 let data = load();
 
+const DEV_KEY = 'madih-light-dev';
+let dev = false;
+try { dev = localStorage.getItem(DEV_KEY) === '1'; } catch { /* storage unavailable */ }
+
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
@@ -36,7 +40,10 @@ export const save = {
 
   isCompleted: id => data.completedLevels.includes(id),
   // Level 1 is always open; every later level opens when the one before it is completed.
-  isUnlocked(songs, index) { return index === 0 || data.completedLevels.includes(songs[index - 1].id); },
+  // Developer mode (Settings toggle) opens every song; real progress is untouched.
+  isUnlocked(songs, index) { return dev || index === 0 || data.completedLevels.includes(songs[index - 1].id); },
+  get dev() { return dev; },
+  setDev(on) { dev = !!on; try { on ? localStorage.setItem(DEV_KEY, '1') : localStorage.removeItem(DEV_KEY); } catch { /* storage unavailable */ } },
   complete(id) { if (!data.completedLevels.includes(id)) { data.completedLevels.push(id); persist(); } },
 
   best: (id, diff) => data.best[`${id}:${diff}`] ?? null,

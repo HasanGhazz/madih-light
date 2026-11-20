@@ -218,6 +218,9 @@ async function boot() {
 
   bindInput($('#stage'), dir => { if (state.running && !state.paused) state.game.move(dir, player.time()); });
 
+  $('#dev').checked = save.dev;
+  $('#dev-badge').hidden = !save.dev;
+  $('#dev').addEventListener('change', e => { save.setDev(e.target.checked); $('#dev-badge').hidden = !save.dev; });
   const direct = songs.findIndex(s => s.id === params.get('song'));
   if (direct >= 0 && save.isUnlocked(songs, direct)) state.index = direct;
   show('menu');

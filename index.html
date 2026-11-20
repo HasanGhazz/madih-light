@@ -37,6 +37,7 @@
   <!-- Title screen -->
   <section id="menu" class="panel" hidden>
     <h1 class="logo">Madih Light</h1>
+    <p id="dev-badge" class="dev-badge" hidden>DEV MODE · all songs unlocked</p>
     <p class="tagline">Clear away the darkness, one beat at a time.</p>
     <div class="stack">
       <button id="play" class="primary">Play</button>
@@ -108,6 +109,10 @@
     <label class="field">Timing offset <span id="offset-value"></span>
       <input id="offset" type="range" min="-200" max="200" step="5">
       <small>Raise it if your moves land late (for example with Bluetooth headphones).</small>
+    </label>
+    <label class="field dev-toggle">
+      <span class="dev-row"><input id="dev" type="checkbox"> Developer mode</span>
+      <small>Unlocks every song for testing. Your real progress is kept.</small>
     </label>
     <button class="primary" data-go="menu">Done</button>
   </section>
