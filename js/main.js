@@ -229,6 +229,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   const t = state.running ? player.time() : now / 1000;
+  if (state.running && !state.paused && player.isFrozen()) pause(); // AirPods out etc.
   if (state.running && !state.paused) {
     state.game.update(t);
     hud.draw(t, state.game.hits, state.game.judged, state.game.beatIndex);

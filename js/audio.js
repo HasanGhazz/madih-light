@@ -27,10 +27,15 @@ export class SongPlayer {
       this.gain.connect(this.ctx.destination);
       this.unlockIOS();
       // iOS stops the audio when earphones are unplugged or a call comes in; tell the game
-      this.ctx.addEventListener('statechange', () => {
-        if (this.ctx.state !== 'running' && !this.selfPaused) this.onLost?.();
+      const ctx = this.ctx;
+      ctx.addEventListener('statechange', () => {
+        if (ctx === this.ctx && ctx.state !== 'running' && !this.selfPaused) { this.stalled = true; this.onLost?.(); }
       });
-      navigator.mediaDevices?.addEventListener?.('devicechange', () => this.onLost?.());
+      if (!this.watchingDevices) {
+        this.watchingDevices = true;
+        navigator.mediaDevices?.addEventListener?.('devicechange', () => { if (this.playing) { this.stalled = true; this.onLost?.(); } });
+      }
+      this.clockSeen = { t: ctx.currentTime, at: performance.now() };
     }
     if (this.ctx.state !== 'running') this.ctx.resume();
     return this.ctx;
@@ -62,6 +67,7 @@ export class SongPlayer {
 
   play(offset, onEnded) {
     this.stop();
+    this.onEnded = onEnded;
     const ctx = this.ensureContext();
     const src = ctx.createBufferSource();
     src.buffer = this.buffer;
@@ -84,10 +90,32 @@ export class SongPlayer {
 
   // Suspending the audio clock also freezes time(), so the game pauses with the music.
   pause() { if (this.ctx && this.ctx.state === 'running') { this.selfPaused = true; return this.ctx.suspend(); } }
-  resume() { // iOS also uses 'interrupted'
+  resume() { // call inside a tap; iOS also uses 'interrupted'
     this.selfPaused = false;
     if (this.mediaEl) this.mediaEl.play().catch(() => {});
+    if (this.stalled && this.playing) return this.rebuild();
     if (this.ctx && this.ctx.state !== 'running') return this.ctx.resume();
+  }
+
+  // iPhone: when AirPods disconnect the audio clock can freeze while the state still says 'running'.
+  // Call every frame while a song plays; returns true once the clock has stopped for 0.4 s.
+  isFrozen() {
+    if (!this.ctx || !this.playing || this.selfPaused) return false;
+    const now = performance.now(), t = this.ctx.currentTime;
+    if (t !== this.clockSeen.t) { this.clockSeen = { t, at: now }; return false; }
+    if (now - this.clockSeen.at > 400) { this.stalled = true; return true; }
+    return false;
+  }
+
+  // Throw away a jammed audio context and carry on from the same song position in a fresh one.
+  rebuild() {
+    const pos = this.ctx.currentTime - this.t0 + this.offset;
+    const old = this.ctx;
+    this.stop();
+    this.ctx = null;
+    try { old.close(); } catch { /* already closed */ }
+    this.stalled = false;
+    this.play(Math.max(0, pos), this.onEnded);
   }
 
   stop() {
